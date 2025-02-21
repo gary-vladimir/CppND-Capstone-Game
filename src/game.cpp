@@ -3,6 +3,7 @@
 #include "SDL.h"
 #include "controller.h"
 #include <chrono>
+#include <algorithm>
 
 Game::Game(std::size_t grid_width, std::size_t grid_height)
     : snake(grid_width, grid_height),
@@ -43,7 +44,7 @@ void Game::Run(Controller const &controller, Renderer &renderer,
     if (!IsPaused()){
       Update();
     }
-    
+
     {
       std::lock_guard<std::mutex> lock(obstacles_mutex);
       renderer.Render(snake, food, obstacles);
@@ -90,14 +91,28 @@ void Game::Run(Controller const &controller, Renderer &renderer,
 
 void Game::SpawnObstaclesLoop() {
   while (game_running) {
+    // Sleep 5 seconds between spawns
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
     if (!paused && game_running) {
-      AddObstacle();
+      AddObstacle(); // create a new obstacle
+
+      // remove obstacles older than 10 seconds
+      auto now = std::chrono::steady_clock::now();
+      {
+        std::lock_guard<std::mutex> lock(obstacles_mutex);
+
+        obstacles.erase(std::remove_if(obstacles.begin(), obstacles.end(),
+          [&](Obstacle const &obs){
+            auto age = now - obs.GetCreationTime();
+            return age > std::chrono::seconds(10);
+          }), 
+          obstacles.end()
+        );
+      }
     }
   }
 }
-
 
 void Game::PlaceFood() {
   int x, y;
