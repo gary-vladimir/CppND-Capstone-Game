@@ -3,9 +3,10 @@
 
 #include <random>
 #include "SDL.h"
-#include "controller.h"
 #include "renderer.h"
 #include "snake.h"
+
+class Controller;
 
 class Game {
  public:
