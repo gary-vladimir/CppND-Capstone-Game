@@ -15,6 +15,9 @@ class Game {
   int GetScore() const;
   int GetSize() const;
 
+  void TogglePause(){paused = !paused;} // New Toggle pause state
+  bool IsPaused() const {return paused;} // Check if paused
+
  private:
   Snake snake;
   SDL_Point food;
@@ -25,7 +28,7 @@ class Game {
   std::uniform_int_distribution<int> random_h;
 
   int score{0};
-
+  bool paused{false}; // New paused state
   void PlaceFood();
   void Update();
 };
