@@ -1,6 +1,7 @@
 #include "game.h"
 #include <iostream>
 #include "SDL.h"
+#include "controller.h"
 
 Game::Game(std::size_t grid_width, std::size_t grid_height)
     : snake(grid_width, grid_height),
@@ -23,8 +24,10 @@ void Game::Run(Controller const &controller, Renderer &renderer,
     frame_start = SDL_GetTicks();
 
     // Input, Update, Render - the main game loop.
-    controller.HandleInput(running, snake);
-    Update();
+    controller.HandleInput(running, snake, *this);
+    if (!IsPaused()){
+      Update();
+    }
     renderer.Render(snake, food);
 
     frame_end = SDL_GetTicks();
@@ -36,7 +39,19 @@ void Game::Run(Controller const &controller, Renderer &renderer,
 
     // After every second, update the window title.
     if (frame_end - title_timestamp >= 1000) {
+      std::string old_title = paused ? "[PAUSED] " : "";
       renderer.UpdateWindowTitle(score, loaded_high_score, frame_count);
+
+      if (paused) {
+        // Retrieve the existing title
+        std::string pausedTitle = "[PAUSED] Score: " +
+                                  std::to_string(score) +
+                                  " | High Score: " +
+                                  std::to_string(loaded_high_score) +
+                                  " | FPS: " + std::to_string(frame_count);
+        SDL_SetWindowTitle(SDL_GetWindowFromID(1), pausedTitle.c_str());
+      }
+      
       frame_count = 0;
       title_timestamp = frame_end;
     }
