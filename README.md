@@ -27,6 +27,21 @@ This is a starter repo for the Capstone project in the [Udacity C++ Nanodegree P
 3. Compile: `cmake .. && make`
 4. Run it: `./SnakeGame`.
 
+### Running from Windows using Docker Container
+
+Running a GUI application inside a Docker Linux container on Windows requires an X server on your host system. Install an X Server on Windows. A popular choice is **VcXsrv**. Install and launch it with default settings.
+
+1. Install Docker Desktop and run it.
+2. `docker build -t capstone-cpp .`
+3. `docker run -it -v "$(pwd -W):/workspace" capstone-cpp`
+4. Inside the container run:
+
+```
+export DISPLAY=host.docker.internal:0
+```
+
+AFTER exporting the DISPLAY variable, run the game: `./SnakeGame`. make sure that VcXsrv is running.
+
 ## New Features & Behavior
 
 1. **High Score System**
