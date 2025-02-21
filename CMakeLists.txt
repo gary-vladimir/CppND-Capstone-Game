@@ -15,5 +15,9 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS} src)
 
 add_executable(SnakeGame src/main.cpp src/game.cpp src/controller.cpp src/renderer.cpp src/snake.cpp src/highscore_manager.cpp src/obstacle.cpp)
+
+find_package(Threads REQUIRED)
+target_link_libraries(SnakeGame ${CMAKE_THREAD_LIBS_INIT})
+
 string(STRIP ${SDL2_LIBRARIES} SDL2_LIBRARIES)
 target_link_libraries(SnakeGame ${SDL2_LIBRARIES})
