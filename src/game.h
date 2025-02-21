@@ -5,6 +5,9 @@
 #include "SDL.h"
 #include "renderer.h"
 #include "snake.h"
+#include "obstacle.h"
+#include <thread>
+#include <mutex>
 
 class Controller;
 
@@ -19,6 +22,9 @@ class Game {
   void TogglePause(){paused = !paused;} // New Toggle pause state
   bool IsPaused() const {return paused;} // Check if paused
 
+  void AddObstacle(int x, int y);
+  void AddObstacle();
+
  private:
   Snake snake;
   SDL_Point food;
@@ -30,8 +36,13 @@ class Game {
 
   int score{0};
   bool paused{false}; // New paused state
+  std::vector<Obstacle> obstacles;
+  std::mutex obstacles_mutex;
+  std::thread obstacle_spawner_thread;
+  bool game_running{true};
   void PlaceFood();
   void Update();
+  void SpawnObstaclesLoop();
 };
 
 #endif

@@ -2,6 +2,7 @@
 #include <iostream>
 #include "SDL.h"
 #include "controller.h"
+#include <chrono>
 
 Game::Game(std::size_t grid_width, std::size_t grid_height)
     : snake(grid_width, grid_height),
@@ -9,6 +10,18 @@ Game::Game(std::size_t grid_width, std::size_t grid_height)
       random_w(0, static_cast<int>(grid_width - 1)),
       random_h(0, static_cast<int>(grid_height - 1)) {
   PlaceFood();
+}
+
+void Game::AddObstacle(){
+  std::lock_guard<std::mutex> lock(obstacles_mutex);
+  int x = random_w(engine);
+  int y = random_h(engine);
+  obstacles.emplace_back(Obstacle(x, y));
+}
+
+void Game::AddObstacle(int x, int y){
+  std::lock_guard<std::mutex> lock(obstacles_mutex);
+  obstacles.emplace_back(Obstacle(x, y));
 }
 
 void Game::Run(Controller const &controller, Renderer &renderer,
@@ -20,6 +33,8 @@ void Game::Run(Controller const &controller, Renderer &renderer,
   int frame_count = 0;
   bool running = true;
 
+  obstacle_spawner_thread = std::thread(&Game::SpawnObstaclesLoop, this);
+
   while (running) {
     frame_start = SDL_GetTicks();
 
@@ -28,7 +43,11 @@ void Game::Run(Controller const &controller, Renderer &renderer,
     if (!IsPaused()){
       Update();
     }
-    renderer.Render(snake, food);
+    
+    {
+      std::lock_guard<std::mutex> lock(obstacles_mutex);
+      renderer.Render(snake, food, obstacles);
+    }
 
     frame_end = SDL_GetTicks();
 
@@ -63,19 +82,49 @@ void Game::Run(Controller const &controller, Renderer &renderer,
       SDL_Delay(target_frame_duration - frame_duration);
     }
   }
+  game_running = false;
+  if(obstacle_spawner_thread.joinable()){
+    obstacle_spawner_thread.join();
+  }
 }
+
+void Game::SpawnObstaclesLoop() {
+  while (game_running) {
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    if (!paused && game_running) {
+      AddObstacle();
+    }
+  }
+}
+
 
 void Game::PlaceFood() {
   int x, y;
   while (true) {
     x = random_w(engine);
     y = random_h(engine);
-    // Check that the location is not occupied by a snake item before placing
-    // food.
+    // Check that the location is not occupied by the snake or obstacles
     if (!snake.SnakeCell(x, y)) {
-      food.x = x;
-      food.y = y;
-      return;
+      // Also check obstacles
+      bool collision_with_obstacle = false;
+
+      // We'll lock the obstacle list to check
+      {
+        std::lock_guard<std::mutex> lock(obstacles_mutex);
+        for (auto const &obs : obstacles) {
+          if (obs.GetX() == x && obs.GetY() == y) {
+            collision_with_obstacle = true;
+            break;
+          }
+        }
+      }
+
+      if (!collision_with_obstacle) {
+        food.x = x;
+        food.y = y;
+        return;
+      }
     }
   }
 }
@@ -95,6 +144,18 @@ void Game::Update() {
     // Grow snake and increase speed.
     snake.GrowBody();
     snake.speed += 0.02;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(obstacles_mutex);
+    for (auto const &obs : obstacles) {
+      if (obs.GetX() == new_x && obs.GetY() == new_y) {
+        // if snake head collides with an obstacle -> snake is dead
+        std::cout << "Snake collided with obstacle! Game Over!\n";
+        snake.alive = false;
+        break;
+      }
+    }
   }
 }
 
